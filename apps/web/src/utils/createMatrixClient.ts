@@ -27,6 +27,7 @@ import IdentityAuthClient from "../IdentityAuthClient";
 import { _t } from "../languageHandler";
 import { formatList } from "./FormattingUtils";
 import { persistTokens } from "./tokens/tokens.ts";
+import { startDesktopHistory } from "./DesktopHistory";
 
 const localStorage = window.localStorage;
 
@@ -151,6 +152,9 @@ export function createClientWithCreds(creds: IMatrixClientCreds, oauthClientId?:
 
     const newCli = createMatrixClient(opts);
     newCli.setGuest(Boolean(creds.guest));
+    if (window.electron && indexedDB && !creds.guest && creds.deviceId) {
+        startDesktopHistory(newCli, JSON.stringify([creds.homeserverUrl, creds.userId, creds.deviceId]));
+    }
 
     const notifTimelineSet = new EventTimelineSet(undefined, {
         timelineSupport: true,

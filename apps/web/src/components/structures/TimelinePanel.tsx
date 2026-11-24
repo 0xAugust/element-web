@@ -59,6 +59,7 @@ import { type ViewRoomPayload } from "../../dispatcher/payloads/ViewRoomPayload"
 import { getKeyBindingsManager } from "../../KeyBindingsManager";
 import { KeyBindingAction } from "../../accessibility/KeyboardShortcuts";
 import { haveRendererForEvent } from "../../events/EventTileFactory";
+import { hasDesktopHistory, paginateDesktopHistory } from "../../utils/DesktopHistory";
 
 // These pagination sizes are higher than they may possibly need be
 // once https://github.com/matrix-org/matrix-spec-proposals/pull/3874 lands
@@ -545,10 +546,27 @@ class TimelinePanel extends React.Component<IProps, IState> {
     ): Promise<boolean> => {
         if (this.props.onPaginationRequest) {
             return this.props.onPaginationRequest(timelineWindow, direction, size);
-        } else {
-            return timelineWindow.paginate(direction, size);
         }
+        if (!this.canUseDesktopHistory(direction)) return timelineWindow.paginate(direction, size);
+        return this.paginateWithDesktopHistory(timelineWindow, size);
     };
+
+    private canUseDesktopHistory(direction: Direction): boolean {
+        const room = this.props.timelineSet.room;
+        return (
+            direction === EventTimeline.BACKWARDS &&
+            !this.props.onPaginationRequest &&
+            !!room &&
+            hasDesktopHistory(room.client, this.props.timelineSet)
+        );
+    }
+
+    private async paginateWithDesktopHistory(timelineWindow: TimelineWindow, size: number): Promise<boolean> {
+        const direction = EventTimeline.BACKWARDS;
+        if (timelineWindow.canPaginate(direction) && (await timelineWindow.paginate(direction, size))) return true;
+        const room = this.props.timelineSet.room;
+        return room ? paginateDesktopHistory(room.client, timelineWindow, size) : false;
+    }
 
     // set off a pagination request.
     private onMessageListFillRequest = (backwards: boolean): Promise<boolean> => {
@@ -565,7 +583,7 @@ class TimelinePanel extends React.Component<IProps, IState> {
             return Promise.resolve(false);
         }
 
-        if (!this.timelineWindow?.canPaginate(dir)) {
+        if (!this.timelineWindow || (!this.timelineWindow.canPaginate(dir) && !this.canUseDesktopHistory(dir))) {
             debuglog("can't", dir, "paginate any further");
             this.setState({ [canPaginateKey]: false } as Pick<IState, CanPaginateKey>);
             return Promise.resolve(false);
@@ -1477,7 +1495,9 @@ class TimelinePanel extends React.Component<IProps, IState> {
 
             this.setState(
                 {
-                    canBackPaginate: this.timelineWindow?.canPaginate(EventTimeline.BACKWARDS) ?? false,
+                    canBackPaginate:
+                        this.canUseDesktopHistory(EventTimeline.BACKWARDS) ||
+                        (this.timelineWindow?.canPaginate(EventTimeline.BACKWARDS) ?? false),
                     canForwardPaginate: this.timelineWindow?.canPaginate(EventTimeline.FORWARDS) ?? false,
                     timelineLoading: false,
                 },
