@@ -58,7 +58,7 @@ jobs:
     build:
         needs: select-source
         if: needs.select-source.outputs.should-build == 'true'
-        runs-on: macos-26
+        runs-on: macos-15
         outputs:
             upstream-sha: ${{ steps.source.outputs.upstream-sha }}
         steps:
