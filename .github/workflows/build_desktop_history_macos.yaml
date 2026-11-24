@@ -52,3 +52,26 @@ jobs:
                       apps/desktop/dist/*.dmg
                       apps/desktop/dist/*.zip
                   if-no-files-found: error
+
+    release:
+        needs: build
+        if: github.ref == 'refs/heads/develop'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+              with:
+                  name: element-desktop-macos-arm64
+                  path: release-assets
+            - name: Publish macOS ARM64 release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GH_REPO: ${{ github.repository }}
+              run: |
+                  tag="desktop-arm64-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+                  gh release create "$tag" release-assets/*.dmg release-assets/*.zip \
+                      --target "$GITHUB_SHA" \
+                      --title "Element Desktop ARM64 build ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" \
+                      --notes "Custom macOS ARM64 build with local chat history. This build is not Apple-notarized." \
+                      --latest
