@@ -30,7 +30,13 @@ jobs:
               working-directory: apps/desktop
               run: |
                   cp -R ../web/webapp webapp
-                  cp element.io/release/config.json webapp/config.json
+                  node -e '
+                      const fs = require("node:fs");
+                      const config = JSON.parse(fs.readFileSync("element.io/release/config.json", "utf8"));
+                      delete config.update_base_url;
+                      config.desktop_update_page_url = "https://github.com/0xAugust/element-web/releases";
+                      fs.writeFileSync("webapp/config.json", JSON.stringify(config));
+                  '
                   pnpm run asar-webapp
             - name: Install Quartz for DMG artwork
               run: sudo pip3 install --break-system-packages pyobjc-framework-Quartz

@@ -223,6 +223,8 @@ export interface WebConfigJson {
 export interface DesktopConfigJson extends WebConfigJson {
     web_base_url?: string;
     update_base_url?: string;
+    /** HTTPS page where desktop users can download updates manually. */
+    desktop_update_page_url?: string;
     /**
      * Configuration for experimental X.509-based identity verification.
      */

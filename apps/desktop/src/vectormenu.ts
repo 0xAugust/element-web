@@ -14,6 +14,7 @@ import { getConfig } from "./config.js";
 const isMac = process.platform === "darwin";
 
 export function buildMenuTemplate(): Menu {
+    const updatePageUrl = getConfig().desktop_update_page_url;
     // Menu template from http://electron.atom.io/docs/api/menu/, edited
     const template: Array<MenuItemConstructorOptions | MenuItem> = [
         {
@@ -135,6 +136,16 @@ export function buildMenuTemplate(): Menu {
                         void shell.openExternal(getConfig().help_url);
                     },
                 },
+                ...(updatePageUrl?.startsWith("https://")
+                    ? [
+                          {
+                              label: _t("action|download_update"),
+                              click(): void {
+                                  void shell.openExternal(updatePageUrl);
+                              },
+                          },
+                      ]
+                    : []),
             ],
         },
     ];

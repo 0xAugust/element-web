@@ -25,6 +25,7 @@ vi.mock("./config.js", () => ({
     getConfig: (): Partial<ConfigOptions> => ({
         brand: "IAMBRAND",
         help_url: "https://i.need.help",
+        desktop_update_page_url: "https://github.com/0xAugust/element-web/releases",
     }),
 }));
 
@@ -56,6 +57,14 @@ describe("buildMenuTemplate", () => {
             expect(helpSubmenu[0].label).toBe("common|brand_help");
             helpSubmenu[0].click!(menu.items.at(-1)!, undefined, new Event("click") as KeyboardEvent);
             expect(shell.openExternal).toHaveBeenCalledWith("https://i.need.help");
+        });
+
+        it("opens the configured desktop update page", () => {
+            const helpMenu = buildMenuTemplate().items.at(-1)!;
+            const helpSubmenu = helpMenu.submenu as unknown as MenuItemConstructorOptions[];
+            expect(helpSubmenu[1].label).toBe("action|download_update");
+            helpSubmenu[1].click!(helpMenu, undefined, new Event("click") as KeyboardEvent);
+            expect(shell.openExternal).toHaveBeenCalledWith("https://github.com/0xAugust/element-web/releases");
         });
     });
 });
