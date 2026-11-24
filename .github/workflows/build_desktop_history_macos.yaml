@@ -75,13 +75,16 @@ jobs:
                   set -euo pipefail
                   history_patch=5dea69a714275e9a17427bcc04ba7883d78dfd16
                   update_page_patch=6a836d820d4b6677b8de6895a5f495e3687d81bf
-                  git fetch --no-tags --depth=2 origin "$history_patch" "$update_page_patch"
+                  update_notifications_patch=f700de52a69c1408410fb3771db0b0ea010b484d
+                  git fetch --no-tags --depth=2 origin "$history_patch" "$update_page_patch" "$update_notifications_patch"
                   git fetch --no-tags --depth=1 https://github.com/element-hq/element-web.git "refs/tags/$UPSTREAM_TAG"
                   git switch --detach FETCH_HEAD
                   echo "upstream-sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-                  for patch in "$history_patch" "$update_page_patch"; do
+                  for patch in "$history_patch" "$update_page_patch" "$update_notifications_patch"; do
                       # The fork's workflows are already loaded. Apply just the product and test changes.
-                      git diff --binary "${patch}^" "$patch" -- apps packages | git apply --3way
+                      git diff --binary "${patch}^" "$patch" -- apps packages \
+                          ':(exclude)apps/web/src/components/views/settings/tabs/user/HelpUserSettingsTab.test.tsx' |
+                          git apply --3way
                   done
             - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
@@ -90,7 +93,12 @@ jobs:
                   install: false
             - run: pnpm install --frozen-lockfile
             - run: pnpm --filter element-web build
-            - run: pnpm vitest run --project 'element-web (unit)' apps/web/src/utils/DesktopHistory.test.ts
+            - run: |
+                  tests=(apps/web/src/utils/DesktopHistory.test.ts)
+                  settings_test=apps/web/src/components/views/settings/tabs/user/HelpUserSettingsTab.test.tsx
+                  if [[ -f "$settings_test" ]]; then tests+=("$settings_test"); fi
+                  pnpm vitest run --project 'element-web (unit)' "${tests[@]}"
+                  pnpm --filter element-desktop exec vitest run src/fork-updates.test.ts
             - name: Package the modified Web client
               working-directory: apps/desktop
               run: |
@@ -100,6 +108,7 @@ jobs:
                       const config = JSON.parse(fs.readFileSync("element.io/release/config.json", "utf8"));
                       delete config.update_base_url;
                       config.desktop_update_page_url = "https://github.com/0xAugust/element-web/releases";
+                      config.desktop_build_number = process.env.GITHUB_RUN_NUMBER + "." + process.env.GITHUB_RUN_ATTEMPT;
                       fs.writeFileSync("webapp/config.json", JSON.stringify(config));
                   '
                   pnpm run asar-webapp
@@ -110,12 +119,18 @@ jobs:
               run: pnpm run build --mac dmg zip --arm64 --publish never
               env:
                   CSC_IDENTITY_AUTO_DISCOVERY: "false"
+            - name: Record the packaged desktop version
+              working-directory: apps/desktop
+              run: |
+                  version=$(node -p 'require("./package.json").version')
+                  printf '{}\n' > "dist/element-desktop-build-$version-$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT.json"
             - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
               with:
                   name: element-desktop-macos-arm64
                   path: |
                       apps/desktop/dist/*.dmg
                       apps/desktop/dist/*.zip
+                      apps/desktop/dist/element-desktop-build-*.json
                   if-no-files-found: error
 
     release:
@@ -139,13 +154,13 @@ jobs:
                   if [[ -n "$UPSTREAM_TAG" ]]; then
                       tag="desktop-arm64-$UPSTREAM_TAG"
                       title="Element Desktop $UPSTREAM_TAG ARM64"
-                      source="Built from official Element $UPSTREAM_TAG ($UPSTREAM_SHA) with the local history and update link patches."
+                      source="Built from official Element $UPSTREAM_TAG ($UPSTREAM_SHA) with local history and fork update notifications."
                   else
                       tag="desktop-arm64-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
                       title="Element Desktop ARM64 build ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
                       source="Built from the fork's develop branch with local chat history."
                   fi
-                  gh release create "$tag" release-assets/*.dmg release-assets/*.zip \
+                  gh release create "$tag" release-assets/*.dmg release-assets/*.zip release-assets/element-desktop-build-*.json \
                       --target "$GITHUB_SHA" \
                       --title "$title" \
                       --notes "$source This build is not Apple-notarized." \
