@@ -76,11 +76,13 @@ jobs:
                   history_patch=5dea69a714275e9a17427bcc04ba7883d78dfd16
                   update_page_patch=6a836d820d4b6677b8de6895a5f495e3687d81bf
                   update_notifications_patch=f700de52a69c1408410fb3771db0b0ea010b484d
-                  git fetch --no-tags --depth=2 origin "$history_patch" "$update_page_patch" "$update_notifications_patch"
+                  update_toast_patch=af2b0622b293d57717c8f83960143a5f514b2d53
+                  patches=("$history_patch" "$update_page_patch" "$update_notifications_patch" "$update_toast_patch")
+                  git fetch --no-tags --depth=2 origin "${patches[@]}"
                   git fetch --no-tags --depth=1 https://github.com/element-hq/element-web.git "refs/tags/$UPSTREAM_TAG"
                   git switch --detach FETCH_HEAD
                   echo "upstream-sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-                  for patch in "$history_patch" "$update_page_patch" "$update_notifications_patch"; do
+                  for patch in "${patches[@]}"; do
                       # The fork's workflows are already loaded. Apply just the product and test changes.
                       git diff --binary "${patch}^" "$patch" -- apps packages \
                           ':(exclude)apps/web/src/components/views/settings/tabs/user/HelpUserSettingsTab.test.tsx' |
@@ -94,7 +96,7 @@ jobs:
             - run: pnpm install --frozen-lockfile
             - run: pnpm --filter element-web build
             - run: |
-                  tests=(apps/web/src/utils/DesktopHistory.test.ts)
+                  tests=(apps/web/src/utils/DesktopHistory.test.ts apps/web/src/vector/platform/ElectronPlatform.test.ts)
                   settings_test=apps/web/src/components/views/settings/tabs/user/HelpUserSettingsTab.test.tsx
                   if [[ -f "$settings_test" ]]; then tests+=("$settings_test"); fi
                   pnpm vitest run --project 'element-web (unit)' "${tests[@]}"
