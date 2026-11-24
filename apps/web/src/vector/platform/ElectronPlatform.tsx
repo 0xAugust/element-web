@@ -53,6 +53,11 @@ interface SquirrelUpdate {
     updateURL: string;
 }
 
+interface ForkDesktopUpdate {
+    releaseName: string;
+    releasePageUrl: string;
+}
+
 const SSO_ID_KEY = "element-desktop-ssoid";
 
 function platformFriendlyName(): string {
@@ -264,13 +269,22 @@ export default class ElectronPlatform extends BasePlatform {
         void this.ipc.call("breadcrumbs", rooms);
     };
 
-    private onUpdateDownloaded = async (ev: Event, { releaseNotes, releaseName }: SquirrelUpdate): Promise<void> => {
+    private onUpdateDownloaded = async (ev: Event, update: SquirrelUpdate | ForkDesktopUpdate): Promise<void> => {
+        const { releaseName } = update;
+        if ("releasePageUrl" in update) {
+            if (this.shouldShowUpdate(releaseName)) {
+                showUpdateToast(await this.getAppVersion(), releaseName, undefined, () => {
+                    window.open(update.releasePageUrl, "_blank", "noopener,noreferrer");
+                });
+            }
+            return;
+        }
         dis.dispatch<CheckUpdatesPayload>({
             action: Action.CheckUpdates,
             status: UpdateCheckStatus.Ready,
         });
         if (this.shouldShowUpdate(releaseName)) {
-            showUpdateToast(await this.getAppVersion(), releaseName, releaseNotes);
+            showUpdateToast(await this.getAppVersion(), releaseName, update.releaseNotes);
         }
     };
 

@@ -23,14 +23,23 @@ function installUpdate(): void {
     PlatformPeg.get()?.installUpdate();
 }
 
-export const showToast = (version: string, newVersion: string, releaseNotes?: string): void => {
+/** Show the standard update reminder, optionally linking to a manual download. */
+export const showToast = (
+    version: string,
+    newVersion: string,
+    releaseNotes?: string,
+    openDownload?: () => void,
+): void => {
     function onReject(): void {
         PlatformPeg.get()?.deferUpdate(newVersion);
     }
 
     let onAccept;
     let acceptLabel = _t("update|see_changes_button");
-    if (releaseNotes) {
+    if (openDownload) {
+        onAccept = openDownload;
+        acceptLabel = _t("action|download");
+    } else if (releaseNotes) {
         onAccept = () => {
             const { finished } = Modal.createDialog(QuestionDialog, {
                 title: _t("update|release_notes_toast_title"),

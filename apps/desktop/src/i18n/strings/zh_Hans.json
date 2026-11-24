@@ -1,7 +1,6 @@
 {
     "update": {
-        "actions_build_failed": "actions构建失败，请管理员查看日志",
-        "new_version_available": "Element 有新版本。"
+        "actions_build_failed": "actions构建失败，请管理员查看日志"
     },
     "action": {
         "cancel": "取消",

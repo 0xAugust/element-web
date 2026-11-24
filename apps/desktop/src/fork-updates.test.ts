@@ -7,15 +7,13 @@ Please see LICENSE in the repository root for full details.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { showNotification, showMessageBox, settings } = vi.hoisted(() => ({
+const { showNotification, settings } = vi.hoisted(() => ({
     showNotification: vi.fn(),
-    showMessageBox: vi.fn().mockResolvedValue({ response: 1 }),
     settings: new Map(),
 }));
 
 vi.mock("electron", () => ({
     app: { name: "Element", getVersion: () => "1.12.35" },
-    dialog: { showMessageBox },
     Notification: class {
         public static isSupported = (): boolean => true;
         public on = vi.fn();
@@ -42,7 +40,8 @@ describe("fork update checks", () => {
 
     it("alerts once per release and failure and clears the failure after a published build", async () => {
         vi.useFakeTimers();
-        vi.stubGlobal("mainWindow", {});
+        const send = vi.fn();
+        vi.stubGlobal("mainWindow", { webContents: { send } });
         let published = "2026-11-24T08:00:00Z";
         vi.stubGlobal(
             "fetch",
@@ -64,7 +63,10 @@ describe("fork update checks", () => {
         vi.advanceTimersByTime(60_000);
         expect(await getForkBuildFailed()).toBe(true);
         expect(showNotification).toHaveBeenCalledTimes(1);
-        expect(showMessageBox).toHaveBeenCalledTimes(1);
+        expect(send).toHaveBeenCalledExactlyOnceWith("update-downloaded", {
+            releaseName: "desktop-arm64-v1.12.36",
+            releasePageUrl: "https://github.com/0xAugust/element-web/releases/tag/desktop-arm64-v1.12.36",
+        });
 
         published = "2026-11-24T10:00:00Z";
         vi.advanceTimersByTime(60_000);

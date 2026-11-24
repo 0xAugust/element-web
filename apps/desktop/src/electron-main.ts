@@ -27,7 +27,7 @@ import path from "node:path";
 import windowStateKeeper from "electron-window-state";
 import { URL, fileURLToPath } from "node:url";
 
-import "./ipc.js";
+import { initialisePromise } from "./ipc.js";
 import "./seshat.js";
 import "./settings.js";
 import "./badge.js";
@@ -306,8 +306,10 @@ app.on("ready", async () => {
         if (!global.mainWindow) return;
         mainWindowState.manage(global.mainWindow);
         if (args.update && config.desktop_build_number) {
-            void getForkBuildFailed();
-            setInterval(() => void getForkBuildFailed(), 30 * 60 * 1000).unref();
+            void initialisePromise.then(() => {
+                void getForkBuildFailed();
+                setInterval(() => void getForkBuildFailed(), 30 * 60 * 1000).unref();
+            });
         }
 
         if (!args.hidden) {

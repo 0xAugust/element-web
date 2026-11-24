@@ -155,6 +155,27 @@ describe("ElectronPlatform", () => {
     });
 
     describe("updates", () => {
+        it("uses the standard update toast to open a fork release", async () => {
+            const platform = tearDownAfterTest(new ElectronPlatform());
+            vi.spyOn(platform, "getAppVersion").mockResolvedValue("1.12.35");
+            const toast = vi.spyOn(ToastStore.sharedInstance(), "addOrReplaceToast");
+            const open = vi.spyOn(window, "open").mockImplementation(() => null);
+            const releasePageUrl = "https://github.com/0xAugust/element-web/releases/tag/desktop-arm64-v1.12.36";
+            const [, handler] = getElectronEventHandlerCall("update-downloaded")!;
+
+            try {
+                await handler({}, { releaseName: "desktop-arm64-v1.12.36", releasePageUrl });
+                expect(toast).toHaveBeenCalledWith(expect.objectContaining({ key: "update" }));
+                const props = toast.mock.lastCall?.[0].props as { onPrimaryClick: () => void };
+                props.onPrimaryClick();
+                expect(open).toHaveBeenCalledWith(releasePageUrl, "_blank", "noopener,noreferrer");
+                expect(mockElectron.send).not.toHaveBeenCalledWith("install_update");
+            } finally {
+                toast.mockRestore();
+                open.mockRestore();
+            }
+        });
+
         it("dispatches on check updates action", () => {
             tearDownAfterTest(new ElectronPlatform());
             const [event, handler] = getElectronEventHandlerCall("check_updates")!;

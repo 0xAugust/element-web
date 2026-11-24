@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE in the repository root for full details.
 */
 
-import { app, dialog, Notification, shell } from "electron";
+import { app, Notification, shell } from "electron";
 
 import { getConfig } from "./config.js";
 import { _t } from "./language-helper.js";
@@ -84,21 +84,10 @@ async function check(repo: string, installed: ForkBuildVersion): Promise<boolean
     const window = global.mainWindow;
     if (window) {
         store.set("lastNotifiedForkRelease", release.tag_name);
-        void dialog
-            .showMessageBox(window, {
-                type: "info",
-                message: _t("update|new_version_available"),
-                buttons: [_t("action|download_update"), _t("action|cancel")],
-                cancelId: 1,
-            })
-            .then(({ response }) => {
-                if (response === 0) {
-                    return shell.openExternal(
-                        `https://github.com/${repo}/releases/tag/${encodeURIComponent(release.tag_name)}`,
-                    );
-                }
-            })
-            .catch((error) => console.warn("Could not show fork update", error));
+        window.webContents.send("update-downloaded", {
+            releaseName: release.tag_name,
+            releasePageUrl: `https://github.com/${repo}/releases/tag/${encodeURIComponent(release.tag_name)}`,
+        });
     }
     return buildFailed;
 }

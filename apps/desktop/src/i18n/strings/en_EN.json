@@ -93,8 +93,7 @@
         }
     },
     "update": {
-        "actions_build_failed": "Actions build failed. Ask an administrator to check the logs.",
-        "new_version_available": "A new version of Element is available."
+        "actions_build_failed": "Actions build failed. Ask an administrator to check the logs."
     },
     "view_menu": {
         "actual_size": "Actual Size",
