@@ -26,6 +26,7 @@ import type { ModuleApi } from "../../../../../modules/Api";
 interface IState {
     appVersion: string | null;
     canUpdate: boolean;
+    forkBuildFailed: boolean;
 }
 
 interface IProps {
@@ -35,6 +36,8 @@ interface IProps {
 export default class HelpUserSettingsTab extends React.Component<IProps, IState> {
     public static contextType = MatrixClientContext;
     declare public context: React.ContextType<typeof MatrixClientContext>;
+    private updateStatusTimer?: ReturnType<typeof setInterval>;
+    private mounted = false;
 
     public constructor(props: IProps) {
         super(props);
@@ -42,10 +45,16 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
         this.state = {
             appVersion: null,
             canUpdate: false,
+            forkBuildFailed: false,
         };
     }
 
     public componentDidMount(): void {
+        this.mounted = true;
+        if (window.electron) {
+            this.refreshForkBuildStatus();
+            this.updateStatusTimer = setInterval(this.refreshForkBuildStatus, 60_000);
+        }
         PlatformPeg.get()
             ?.getAppVersion()
             .then((ver) => this.setState({ appVersion: ver }))
@@ -59,6 +68,20 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
                 logger.error("Error getting self updatability: ", e);
             });
     }
+
+    public componentWillUnmount(): void {
+        this.mounted = false;
+        clearInterval(this.updateStatusTimer);
+    }
+
+    private refreshForkBuildStatus = (): void => {
+        PlatformPeg.get()
+            ?.getForkBuildFailed()
+            .then((forkBuildFailed) => {
+                if (this.mounted) this.setState({ forkBuildFailed });
+            })
+            .catch((error) => logger.warn("Could not read desktop build status", error));
+    };
 
     private getVersionInfo(): { appVersion: string; cryptoVersion: string } {
         const brand = SdkConfig.get().brand;
@@ -269,6 +292,11 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
                             </CopyableText>
                             {updateButton}
                         </SettingsSubsectionText>
+                        {this.state.forkBuildFailed && (
+                            <SettingsSubsectionText role="status">
+                                {_t("update|actions_build_failed")}
+                            </SettingsSubsectionText>
+                        )}
                     </SettingsSubsection>
                     {this.renderLegal()}
                     {this.renderCredits()}

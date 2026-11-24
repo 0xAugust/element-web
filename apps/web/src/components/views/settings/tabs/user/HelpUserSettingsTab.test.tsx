@@ -16,6 +16,8 @@ import HelpUserSettingsTab from "./HelpUserSettingsTab";
 import MatrixClientContext from "../../../../../contexts/MatrixClientContext";
 import { ElementWebExtrasApi } from "../../../../../modules/ExtrasApi";
 import type { ModuleApi } from "../../../../../modules/Api";
+import type BasePlatform from "../../../../../BasePlatform";
+import PlatformPeg from "../../../../../PlatformPeg";
 
 describe("<HelpUserSettingsTab />", () => {
     const mockClient = getMockClientWithEventEmitter({
@@ -45,5 +47,23 @@ describe("<HelpUserSettingsTab />", () => {
         expect(items).toHaveLength(5);
         expect(items[3]).toHaveTextContent("First module credit");
         expect(items[4]).toHaveTextContent("Second module credit");
+    });
+
+    it("shows one status line when the desktop build fails", async () => {
+        vi.stubGlobal("electron", {});
+        const platform = vi.spyOn(PlatformPeg, "get").mockReturnValue({
+            getAppVersion: async () => "1.12.35",
+            canSelfUpdate: async () => false,
+            getForkBuildFailed: async () => true,
+        } as BasePlatform);
+        try {
+            getComponent(new ElementWebExtrasApi());
+            expect(await screen.findByRole("status")).toHaveTextContent(
+                "Actions build failed. Ask an administrator to check the logs.",
+            );
+        } finally {
+            platform.mockRestore();
+            vi.unstubAllGlobals();
+        }
     });
 });

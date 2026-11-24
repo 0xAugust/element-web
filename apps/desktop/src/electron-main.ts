@@ -37,6 +37,7 @@ import Store from "./store.js";
 import { buildMenuTemplate } from "./vectormenu.js";
 import webContentsHandler from "./webcontents-handler.js";
 import * as updater from "./updater.js";
+import { getForkBuildFailed } from "./fork-updates.js";
 import ProtocolHandler from "./protocol.js";
 import { _t, AppLocalization } from "./language-helper.js";
 import { setDisplayMediaCallback } from "./displayMediaCallback.js";
@@ -304,6 +305,10 @@ app.on("ready", async () => {
     global.mainWindow.once("ready-to-show", () => {
         if (!global.mainWindow) return;
         mainWindowState.manage(global.mainWindow);
+        if (args.update && config.desktop_build_number) {
+            void getForkBuildFailed();
+            setInterval(() => void getForkBuildFailed(), 30 * 60 * 1000).unref();
+        }
 
         if (!args.hidden) {
             global.mainWindow.show();

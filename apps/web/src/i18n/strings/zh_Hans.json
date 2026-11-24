@@ -3767,6 +3767,7 @@
     "unsupported_server_description": "此服务器正在使用旧版本的 Matrix。请升级到 Matrix %(version)s 以正常使用 %(brand)s。",
     "unsupported_server_title": "服务器不支持",
     "update": {
+        "actions_build_failed": "actions构建失败，请管理员查看日志",
         "changelog": "更改日志",
         "check_action": "检查更新",
         "checking": "正在检查更新…",

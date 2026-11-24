@@ -225,6 +225,8 @@ export interface DesktopConfigJson extends WebConfigJson {
     update_base_url?: string;
     /** HTTPS page where desktop users can download updates manually. */
     desktop_update_page_url?: string;
+    /** GitHub Actions run number and attempt of this desktop package. */
+    desktop_build_number?: string;
     /**
      * Configuration for experimental X.509-based identity verification.
      */

@@ -12,6 +12,7 @@ import { randomArray } from "./utils.js";
 import { consumeDisplayMediaCallback } from "./displayMediaCallback.js";
 import Store, { clearData } from "./store.js";
 import { getConfig } from "./config.js";
+import { getForkBuildFailed } from "./fork-updates.js";
 
 let focusHandlerAttached = false;
 ipcMain.on("loudNotification", function (): void {
@@ -57,6 +58,9 @@ ipcMain.on("ipcCall", async function (_ev: IpcMainEvent, payload) {
     switch (payload.name) {
         case "getUpdateFeedUrl":
             ret = autoUpdater.getFeedURL();
+            break;
+        case "getForkBuildFailed":
+            ret = await getForkBuildFailed();
             break;
         case "setLanguage":
             global.appLocalization.setAppLocale(args[0]);

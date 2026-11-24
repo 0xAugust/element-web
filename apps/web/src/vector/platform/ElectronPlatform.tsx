@@ -399,6 +399,10 @@ export default class ElectronPlatform extends BasePlatform {
         return Boolean(feedUrl);
     }
 
+    public override async getForkBuildFailed(): Promise<boolean> {
+        return (await this.ipc.call("getForkBuildFailed")) === true;
+    }
+
     public startUpdateCheck(): void {
         super.startUpdateCheck();
         this.electron.send("check_updates");

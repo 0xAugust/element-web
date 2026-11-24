@@ -82,6 +82,8 @@ export async function clearData(electronSession: Session): Promise<void> {
 }
 
 interface StoreData {
+    lastNotifiedForkFailure?: number;
+    lastNotifiedForkRelease?: string;
     warnBeforeExit: boolean;
     minimizeToTray: boolean;
     spellCheckerEnabled: boolean;

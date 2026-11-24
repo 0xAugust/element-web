@@ -3811,6 +3811,7 @@
     "unsupported_server_description": "This server is using an older version of Matrix. Upgrade to Matrix %(version)s to use %(brand)s without errors.",
     "unsupported_server_title": "Your server is unsupported",
     "update": {
+        "actions_build_failed": "Actions build failed. Ask an administrator to check the logs.",
         "changelog": "Changelog",
         "check_action": "Check for update",
         "checking": "Checking for an update…",

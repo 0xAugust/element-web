@@ -127,6 +127,11 @@ export default abstract class BasePlatform {
         return false;
     }
 
+    /** Whether the configured desktop build failed after the last published update. */
+    public async getForkBuildFailed(): Promise<boolean> {
+        return false;
+    }
+
     public startUpdateCheck(): void {
         hideUpdateToast();
         localStorage.removeItem(UPDATE_DEFER_KEY);
