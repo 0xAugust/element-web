@@ -6,18 +6,83 @@
 name: Build Element Desktop ARM64
 
 on:
+    schedule:
+        - cron: "23 8 * * *"
     workflow_dispatch:
+        inputs:
+            upstream-stable:
+                description: Build the latest official stable release with the custom patches
+                type: boolean
+                default: false
+
+concurrency:
+    group: desktop-arm64-${{ github.ref }}
+    cancel-in-progress: false
 
 permissions:
     contents: read
 
 jobs:
+    select-source:
+        runs-on: ubuntu-latest
+        outputs:
+            upstream-tag: ${{ steps.select.outputs.upstream-tag }}
+            should-build: ${{ steps.select.outputs.should-build }}
+        steps:
+            - name: Select source version
+              id: select
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GH_REPO: ${{ github.repository }}
+                  TRACK_UPSTREAM: ${{ github.event_name == 'schedule' || inputs.upstream-stable }}
+              run: |
+                  if [[ "$TRACK_UPSTREAM" != true ]]; then
+                      echo "should-build=true" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  tag=$(gh api repos/element-hq/element-web/releases/latest --jq '.tag_name')
+                  if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                      echo "::error::Unexpected upstream stable release tag: $tag"
+                      exit 1
+                  fi
+                  if result=$(gh api "repos/$GH_REPO/releases/tags/desktop-arm64-$tag" 2>&1); then
+                      echo "Already published desktop-arm64-$tag"
+                      exit 0
+                  elif [[ "$result" != *"(HTTP 404)"* ]]; then
+                      printf '%s\n' "$result" >&2
+                      exit 1
+                  fi
+                  echo "upstream-tag=$tag" >> "$GITHUB_OUTPUT"
+                  echo "should-build=true" >> "$GITHUB_OUTPUT"
+
     build:
+        needs: select-source
+        if: needs.select-source.outputs.should-build == 'true'
         runs-on: macos-26
+        outputs:
+            upstream-sha: ${{ steps.source.outputs.upstream-sha }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
               with:
                   persist-credentials: false
+            - name: Apply desktop patches to the official release
+              if: needs.select-source.outputs.upstream-tag != ''
+              id: source
+              shell: bash
+              env:
+                  UPSTREAM_TAG: ${{ needs.select-source.outputs.upstream-tag }}
+              run: |
+                  set -euo pipefail
+                  history_patch=5dea69a714275e9a17427bcc04ba7883d78dfd16
+                  update_page_patch=6a836d820d4b6677b8de6895a5f495e3687d81bf
+                  git fetch --no-tags --depth=2 origin "$history_patch" "$update_page_patch"
+                  git fetch --no-tags --depth=1 https://github.com/element-hq/element-web.git "refs/tags/$UPSTREAM_TAG"
+                  git switch --detach FETCH_HEAD
+                  echo "upstream-sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+                  for patch in "$history_patch" "$update_page_patch"; do
+                      # The fork's workflows are already loaded. Apply just the product and test changes.
+                      git diff --binary "${patch}^" "$patch" -- apps packages | git apply --3way
+                  done
             - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
@@ -54,7 +119,7 @@ jobs:
                   if-no-files-found: error
 
     release:
-        needs: build
+        needs: [select-source, build]
         if: github.ref == 'refs/heads/develop'
         runs-on: ubuntu-latest
         permissions:
@@ -68,10 +133,20 @@ jobs:
               env:
                   GH_TOKEN: ${{ github.token }}
                   GH_REPO: ${{ github.repository }}
+                  UPSTREAM_TAG: ${{ needs.select-source.outputs.upstream-tag }}
+                  UPSTREAM_SHA: ${{ needs.build.outputs.upstream-sha }}
               run: |
-                  tag="desktop-arm64-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+                  if [[ -n "$UPSTREAM_TAG" ]]; then
+                      tag="desktop-arm64-$UPSTREAM_TAG"
+                      title="Element Desktop $UPSTREAM_TAG ARM64"
+                      source="Built from official Element $UPSTREAM_TAG ($UPSTREAM_SHA) with the local history and update link patches."
+                  else
+                      tag="desktop-arm64-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+                      title="Element Desktop ARM64 build ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+                      source="Built from the fork's develop branch with local chat history."
+                  fi
                   gh release create "$tag" release-assets/*.dmg release-assets/*.zip \
                       --target "$GITHUB_SHA" \
-                      --title "Element Desktop ARM64 build ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" \
-                      --notes "Custom macOS ARM64 build with local chat history. This build is not Apple-notarized." \
+                      --title "$title" \
+                      --notes "$source This build is not Apple-notarized." \
                       --latest
