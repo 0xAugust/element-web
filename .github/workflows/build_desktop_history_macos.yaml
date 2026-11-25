@@ -62,6 +62,11 @@ jobs:
         outputs:
             upstream-sha: ${{ steps.source.outputs.upstream-sha }}
         steps:
+            - name: Select Xcode 26.3
+              run: |
+                  sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
+                  xcodebuild -version
+                  xcrun actool --version
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
               with:
                   persist-credentials: false
